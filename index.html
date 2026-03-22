@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artifacts of Life</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Courier New', monospace; font-size: 13px; background: #1a1a2e; min-height: 100vh; }
+.browser-bar { background: #1c2a6e; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #2a3a8e; position: sticky; top: 0; z-index: 100; }
+.browser-title { font-size: 12px; color: #fff; font-weight: 700; letter-spacing: 0.02em; flex: 1; padding-right: 12px; }
+.browser-buttons { display: flex; gap: 6px; flex-shrink: 0; }
+.bb { width: 18px; height: 16px; border: 1px solid #7080b0; background: #2a3a8e; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #ccd; cursor: default; }
+.nav-bar { background: #f0f0f0; display: flex; border-bottom: 1px solid #bbb; overflow-x: auto; }
+.nav-item { font-size: 12px; padding: 8px 14px; color: #111; cursor: pointer; border-right: 1px solid #ccc; white-space: nowrap; flex-shrink: 0; }
+.nav-item:hover { background: #e0e0e0; }
+.nav-item.active { font-weight: 700; text-decoration: underline; background: #fff; }
+.page { background: #fff; max-width: 600px; margin: 0 auto; padding: 20px 16px 40px; display: none; }
+.page.active { display: block; }
+.intro { font-size: 13px; line-height: 1.7; color: #111; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #ddd; }
+.intro p { margin-bottom: 10px; }
+.intro p:last-child { margin-bottom: 0; }
+.highlight { border: 1px solid #2a3a8e; padding: 8px 12px; margin-top: 12px; font-size: 12px; color: #1c2a6e; background: #f4f6ff; }
+.section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 10px; margin-top: 24px; display: flex; align-items: center; gap: 6px; }
+.section-label::after { content: ''; flex: 1; height: 1px; background: #e0e0e0; }
+.artifact-list { display: flex; flex-direction: column; gap: 8px; }
+.artifact-item { border: 1px solid #ccc; background: #fafafa; display: flex; align-items: stretch; }
+.artifact-item.dragging { opacity: 0.4; }
+.artifact-item.drag-over { border: 2px dashed #1c2a6e; background: #f0f4ff; }
+.artifact-icon-col { width: 48px; flex-shrink: 0; background: #e8e8e8; border-right: 1px solid #ccc; display: flex; align-items: center; justify-content: center; cursor: grab; }
+.artifact-icon-col:active { cursor: grabbing; }
+.artifact-icon-col svg { width: 24px; height: 24px; }
+.artifact-main { flex: 1; min-width: 0; }
+.artifact-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px 4px; }
+.artifact-name { font-size: 12px; font-weight: 700; color: #111; flex: 1; min-width: 0; }
+.artifact-date { font-size: 10px; color: #888; flex-shrink: 0; }
+.artifact-body { padding: 0 10px 8px; font-size: 11px; line-height: 1.5; color: #555; border-bottom: 1px solid #e8e8e8; }
+.artifact-link-row { padding: 5px 10px; display: flex; align-items: center; gap: 8px; background: #f7f7f7; }
+.link-label { font-size: 10px; color: #888; flex-shrink: 0; }
+.link-input { font-size: 11px; color: #1c2a6e; border: none; background: transparent; flex: 1; outline: none; text-decoration: underline; cursor: default; min-width: 0; font-family: 'Courier New', monospace; pointer-events: none; }
+.open-btn { font-size: 10px; font-weight: 700; color: #fff; background: #1c2a6e; border: none; padding: 3px 8px; cursor: pointer; flex-shrink: 0; text-decoration: none; display: inline-block; font-family: 'Courier New', monospace; }
+.open-btn:hover { background: #2a3a8e; }
+.resource-folder { margin-bottom: 20px; }
+.folder-header { background: #e8e8e8; border: 1px solid #bbb; border-bottom: none; padding: 4px 10px; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #333; text-transform: uppercase; letter-spacing: 0.06em; }
+.folder-body { border: 1px solid #bbb; background: #fff; padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.file-item { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 4px; cursor: pointer; border: 1px solid transparent; text-align: center; }
+.file-item:hover { background: #dce8ff; border-color: #7090cc; }
+.file-item:active { background: #b8ccff; }
+.file-icon { width: 40px; height: 48px; flex-shrink: 0; }
+.file-name { font-size: 10px; color: #111; line-height: 1.3; word-break: break-word; max-width: 90px; }
+.footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 10px; color: #aaa; text-align: center; line-height: 1.8; }
+.credits-trigger { display: inline-block; cursor: pointer; opacity: 0.5; transition: opacity 0.2s; margin-top: 16px; }
+.credits-trigger:hover { opacity: 1; }
+.contact-card { border: 1px solid #ccc; background: #fafafa; padding: 16px; margin-bottom: 12px; }
+.contact-name { font-size: 18px; font-weight: 700; color: #1c2a6e; margin-bottom: 4px; }
+.contact-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dotted #ddd; font-size: 12px; }
+.contact-row:last-child { border-bottom: none; }
+.contact-label { font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.06em; min-width: 70px; flex-shrink: 0; }
+.contact-value a { color: #1c2a6e; text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="browser-bar">
+  <div class="browser-title">Artifacts of Life</div>
+  <div class="browser-buttons">
+    <div class="bb">─</div><div class="bb">□</div><div class="bb">✕</div>
+  </div>
+</div>
+<div class="nav-bar">
+  <div class="nav-item active" onclick="showTab('home',this)">Home</div>
+  <div class="nav-item" onclick="showTab('portfolio',this)">Portfolio</div>
+  <div class="nav-item" onclick="showTab('resources',this)">Resources</div>
+  <div class="nav-item" onclick="showTab('contact',this)">Contact</div>
+</div>
+
+<!-- ═══ HOME ═══ -->
+<div id="page-home" class="page active">
+  <div class="intro">
+    <p>Welcome to Artifacts of Life. Use the tabs to explore my portfolio, resources and more.</p>
+  </div>
+  <div style="border:1px solid #ccc;background:#f7f7f7;padding:24px 16px;text-align:center;margin-bottom:16px;">
+    <p style="font-size:12px;color:#444;margin-bottom:16px;">Click below to view the full slide deck.</p>
+    <a href="https://www.canva.com/design/DAHCRCJTtDw/Ojz0fwsdbBhG8OtUpGKKjQ/view?utm_content=DAHCRCJTtDw&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h786c2682ed" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:#fff;background:#1c2a6e;padding:10px 20px;text-decoration:none;display:inline-block;font-family:'Courier New',monospace;">View Slide Deck ↗</a>
+    <p style="font-size:10px;color:#aaa;margin-top:12px;">Artifacts of Life by Amara Hand</p>
+  </div>
+  <div class="footer">AI Symposium 2026 &bull; Research Remix: AI in the Real World<br>Built with Claude &bull; Artifacts of Life &bull; Amara Hand</div>
+  <div id="floppy-home"></div>
+</div>
+
+<!-- ═══ PORTFOLIO ═══ -->
+<div id="page-portfolio" class="page">
+  <div class="intro">
+    <p>Hi, I'm <strong>Amara Hand</strong> — a writing educator who was, not too long ago, genuinely scared of AI.</p>
+    <p>But eventually something shifted. Not because those fears disappeared — many of them are still quite valid — but because my frustrations and aspirations grew louder than my fear. I was tired of static, one-size-fits-all tools that didn't do justice to what my students actually needed. So I started building my own.</p>
+    <p>Here's what I know now: I was afraid because I didn't yet know everything I could do with it. When we engage these tools with good intention and imagination, AI doesn't replace our creativity — it makes space for us to flourish. The visions were always mine. AI just gave me the tools to build these out.</p>
+    <div class="highlight">What I was doing has a name now: <strong>vibe-coding</strong>. Describing what I imagined, prompting my way toward that vision, and iterating until it worked. These are the artifacts that came out of it.</div>
+  </div>
+
+  <div class="section-label">Interactive Apps &amp; Tools</div>
+  <div class="artifact-list" id="list-app">
+    <div class="artifact-item" draggable="true">
+      <div class="artifact-icon-col"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="1" fill="#fff" stroke="#1c2a6e" stroke-width="1.5"/><rect x="4" y="5" width="16" height="10" fill="#b8ccff"/><rect x="9" y="17" width="6" height="2" fill="#888"/><rect x="7" y="19" width="10" height="1.5" rx="0.5" fill="#888"/></svg></div>
+      <div class="artifact-main">
+        <div class="artifact-header"><span class="artifact-name">Quick Keys</span><span class="artifact-date">2026</span></div>
+        <div class="artifact-body">A lot of my students were taking the long way to do really simple things: copying, pasting, selecting text. I built this keyboard simulator to teach them the shortcuts that make writing faster and less frustrating.</div>
+        <div class="artifact-link-row"><span class="link-label">URL →</span><input class="link-input" id="u1" type="url" value="https://claude.ai/public/artifacts/abc126ed-976b-450e-9e69-e1d31f5e30d2" /><a class="open-btn" href="#" onclick="return go('u1')">Open ↗</a></div>
+      </div>
+    </div>
+    <div class="artifact-item" draggable="true">
+      <div class="artifact-icon-col"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="1" fill="#fff" stroke="#1c2a6e" stroke-width="1.5"/><rect x="4" y="5" width="16" height="10" fill="#b8ccff"/><rect x="9" y="17" width="6" height="2" fill="#888"/><rect x="7" y="19" width="10" height="1.5" rx="0.5" fill="#888"/></svg></div>
+      <div class="artifact-main">
+        <div class="artifact-header"><span class="artifact-name">Lateral Reading Field Log</span><span class="artifact-date">2026</span></div>
+        <div class="artifact-body">This started as a plain-text worksheet with a table, functional but static. I needed something students could actually use in the digital environment where they do most of their research, so I rebuilt it as an interactive tool for organizing sources and assessing credibility.</div>
+        <div class="artifact-link-row"><span class="link-label">URL →</span><input class="link-input" id="u2" type="url" value="https://claude.ai/public/artifacts/7f0000c7-fe59-47df-a16c-4644668736e6" /><a class="open-btn" href="#" onclick="return go('u2')">Open ↗</a></div>
+      </div>
+    </div>
+    <div class="artifact-item" draggable="true">
+      <div class="artifact-icon-col"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="1" fill="#fff" stroke="#1c2a6e" stroke-width="1.5"/><rect x="4" y="5" width="16" height="10" fill="#b8ccff"/><rect x="9" y="17" width="6" height="2" fill="#888"/><rect x="7" y="19" width="10" height="1.5" rx="0.5" fill="#888"/></svg></div>
+      <div class="artifact-main">
+        <div class="artifact-header"><span class="artifact-name">How We Got Here: A Leadership Timeline</span><span class="artifact-date">2026</span></div>
+        <div class="artifact-body">I made a static timeline mapping how the meaning of leadership has shifted across the century. This version is far more dynamic and interactive, and it finally does justice to Black American and global contexts that the original couldn't hold.</div>
+        <div class="artifact-link-row"><span class="link-label">URL →</span><input class="link-input" id="u3" type="url" value="https://claude.ai/public/artifacts/fbd7b3dc-7739-45a1-a663-01c22ab295c8" /><a class="open-btn" href="#" onclick="return go('u3')">Open ↗</a></div>
+      </div>
+    </div>
+    <div class="artifact-item" draggable="true">
+      <div class="artifact-icon-col"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="1" fill="#fff" stroke="#1c2a6e" stroke-width="1.5"/><rect x="4" y="5" width="16" height="10" fill="#b8ccff"/><rect x="9" y="17" width="6" height="2" fill="#888"/><rect x="7" y="19" width="10" height="1.5" rx="0.5" fill="#888"/></svg></div>
+      <div class="artifact-main">
+        <div class="artifact-header"><span class="artifact-name">Save the Grade Email Generator</span><span class="artifact-date">2026</span></div>
+        <div class="artifact-body">This was built for TSI's Save the Grade event, a midterm intervention for students at risk of failing. It helps them write clear, concise emails that take accountability for where things went wrong and lay out a real plan for their comeback.</div>
+        <div class="artifact-link-row"><span class="link-label">URL →</span><input class="link-input" id="u4" type="url" value="https://claude.ai/public/artifacts/aa413ef6-f062-47bf-ac4b-4c9aff12b4bd" /><a class="open-btn" href="#" onclick="return go('u4')">Open ↗</a></div>
+      </div>
+    </div>
+    <div class="artifact-item" draggable="true">
+      <div class="artifact-icon-col"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="1" fill="#fff" stroke="#1c2a6e" stroke-width="1.5"/><rect x="4" y="5" width="16" height="10" fill="#b8ccff"/><rect x="9" y="17" width="6" height="2" fill="#888"/><rect x="7" y="19" width="10" height="1.5" rx="0.5" fill="#888"/></svg></div>
+      <div class="artifact-main">
+        <div class="artifact-header"><span class="artifact-name">The Student's AI Disclosure Form</span><span class="artifact-date">2025 / 2026</span></div>
+        <div class="artifact-body">I wanted to promote transparency around AI use without making students start from scratch. This form gives them a structured way to reflect on how they used AI and disclose it to their professor, clearly and honestly.</div>
+        <div class="artifact-link-row"><span class="link-label">URL →</span><input class="link-input" id="u5" type="url" value="https://claude.ai/public/artifacts/4efa3a62-9a13-4c9f-9d50-abbe93b10259" /><a class="open-btn" href="#" onclick="return go('u5')">Open ↗</a></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Games</div>
+  <div class="artifact-list" id="list-game">
+    <div class="artifact-item" draggable="true">
+      <div class="artifact-icon-col"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="10" rx="5" fill="#fff" stroke="#6e1c1c" stroke-width="1.5"/><rect x="7" y="11" width="4" height="1.5" rx="0.5" fill="#6e1c1c"/><rect x="8.25" y="9.75" width="1.5" height="4" rx="0.5" fill="#6e1c1c"/><circle cx="15" cy="11.5" r="1" fill="#6e1c1c"/><circle cx="17" cy="13" r="1" fill="#6e1c1c"/><rect x="6" y="6" width="3" height="3" rx="0.5" fill="#ccc" stroke="#999" stroke-width="0.5"/><rect x="15" y="6" width="3" height="3" rx="0.5" fill="#ccc" stroke="#999" stroke-width="0.5"/></svg></div>
+      <div class="artifact-main">
+        <div class="artifact-header"><span class="artifact-name">Locked in the Inbox: An Email-Writing Escape Room</span><span class="artifact-date">2026</span></div>
+        <div class="artifact-body">I'd been wanting to build a digital escape room for a while but couldn't quite land on the concept. When I finally did, it made sense to center it on something my students and colleagues both struggle with: writing better emails.</div>
+        <div class="artifact-link-row"><span class="link-label">URL →</span><input class="link-input" id="u6" type="url" value="https://claude.ai/public/artifacts/99f71adb-16c3-4795-9452-cf6c77c67447" /><a class="open-btn" href="#" onclick="return go('u6')">Open ↗</a></div>
+      </div>
+    </div>
+    <div class="artifact-item" draggable="true">
+      <div class="artifact-icon-col"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="10" rx="5" fill="#fff" stroke="#6e1c1c" stroke-width="1.5"/><rect x="7" y="11" width="4" height="1.5" rx="0.5" fill="#6e1c1c"/><rect x="8.25" y="9.75" width="1.5" height="4" rx="0.5" fill="#6e1c1c"/><circle cx="15" cy="11.5" r="1" fill="#6e1c1c"/><circle cx="17" cy="13" r="1" fill="#6e1c1c"/><rect x="6" y="6" width="3" height="3" rx="0.5" fill="#ccc" stroke="#999" stroke-width="0.5"/><rect x="15" y="6" width="3" height="3" rx="0.5" fill="#ccc" stroke="#999" stroke-width="0.5"/></svg></div>
+      <div class="artifact-main">
+        <div class="artifact-header"><span class="artifact-name">Cite it or Not? A Common Knowledge Citation Activity</span><span class="artifact-date">2026</span></div>
+        <div class="artifact-body">This one came to me early in my AI-curious days. I wanted a quick, low-stakes game that taught students something deceptively simple: what counts as common knowledge, and what actually needs a citation.</div>
+        <div class="artifact-link-row"><span class="link-label">URL →</span><input class="link-input" id="u7" type="url" value="https://claude.ai/public/artifacts/ff30362c-09c1-49ec-9541-cfd5fe39b4f2" /><a class="open-btn" href="#" onclick="return go('u7')">Open ↗</a></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Custom GPT</div>
+  <div class="artifact-list" id="list-gpt">
+    <div class="artifact-item" draggable="true">
+      <div class="artifact-icon-col"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3a6 6 0 0 1 4 10.47V15a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-1.53A6 6 0 0 1 12 3z" fill="#fffbe6" stroke="#6e4e1c" stroke-width="1.5"/><rect x="9.5" y="16" width="5" height="1.5" rx="0.5" fill="#6e4e1c"/><rect x="10" y="18" width="4" height="1.5" rx="0.5" fill="#6e4e1c"/><line x1="12" y1="6" x2="12" y2="9" stroke="#f5c842" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="artifact-main">
+        <div class="artifact-header"><span class="artifact-name">Annotated Bibliography Building Assistant (ABBA)</span><span class="artifact-date">2025</span></div>
+        <div class="artifact-body">When I was first introduced to PlayLab, I wanted to build something that walked students through a process they often rush: the annotated bibliography. The tool asks them questions about their source, so they have to prove they actually read it before the entry gets generated.</div>
+        <div class="artifact-link-row"><span class="link-label">URL →</span><input class="link-input" id="u8" type="url" value="https://www.playlab.ai/project/cmhy2wqmx7jx2gf0utxla4alw" /><a class="open-btn" href="#" onclick="return go('u8')">Open ↗</a></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Other</div>
+  <div class="artifact-list" id="list-other">
+    <div class="artifact-item" draggable="true">
+      <div class="artifact-icon-col"><svg viewBox="0 0 24 24" fill="none"><path d="M6 2h9l4 4v16H6V2z" fill="#fff" stroke="#4a4a4a" stroke-width="1.5"/><path d="M14 2v5h5" fill="none" stroke="#4a4a4a" stroke-width="1.5"/><rect x="9" y="10" width="7" height="1.2" rx="0.5" fill="#aaa"/><rect x="9" y="13" width="7" height="1.2" rx="0.5" fill="#aaa"/><rect x="9" y="16" width="5" height="1.2" rx="0.5" fill="#aaa"/></svg></div>
+      <div class="artifact-main">
+        <div class="artifact-header"><span class="artifact-name">Wedding Band Builder</span><span class="artifact-date">2026</span></div>
+        <div class="artifact-body">For the grooms who say "I don't know" and the brides who love them anyway. This one was personal, a tool to help couples narrow down their wedding band preferences by walking through styles, metals, and what actually matters to them.</div>
+        <div class="artifact-link-row"><span class="link-label">URL →</span><input class="link-input" id="u9" type="url" value="https://claude.ai/public/artifacts/cff8e683-8fb2-40ac-93e9-068006a2b1c9" /><a class="open-btn" href="#" onclick="return go('u9')">Open ↗</a></div>
+      </div>
+    </div>
+    <div class="artifact-item" draggable="true">
+      <div class="artifact-icon-col"><svg viewBox="0 0 24 24" fill="none"><path d="M6 2h9l4 4v16H6V2z" fill="#fff" stroke="#4a4a4a" stroke-width="1.5"/><path d="M14 2v5h5" fill="none" stroke="#4a4a4a" stroke-width="1.5"/><rect x="9" y="10" width="7" height="1.2" rx="0.5" fill="#aaa"/><rect x="9" y="13" width="7" height="1.2" rx="0.5" fill="#aaa"/><rect x="9" y="16" width="5" height="1.2" rx="0.5" fill="#aaa"/></svg></div>
+      <div class="artifact-main">
+        <div class="artifact-header"><span class="artifact-name">What Kind of User Are You?</span><span class="artifact-date">2026</span></div>
+        <div class="artifact-body">A quick, Buzzfeed-style quiz to get students thinking about their own level of AI reliance. It's not meant to be heavy, just a fun nudge toward a little self-reflection.</div>
+        <div class="artifact-link-row"><span class="link-label">URL →</span><input class="link-input" id="u10" type="url" value="https://claude.ai/public/artifacts/69bb743d-51bf-401f-9d4e-88f0e0bd6d79" /><a class="open-btn" href="#" onclick="return go('u10')">Open ↗</a></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">AI Symposium 2026 &bull; Research Remix: AI in the Real World<br>Built with Claude &bull; Artifacts of Life &bull; Amara Hand</div>
+  <div id="floppy-portfolio"></div>
+</div>
+
+<!-- ═══ RESOURCES ═══ -->
+<div id="page-resources" class="page">
+  <div class="intro">
+    <p>A curated list of readings and resources for people wanting a good read about AI and education.</p>
+  </div>
+
+  <div class="resource-folder">
+    <div class="folder-header"><svg width="16" height="14" viewBox="0 0 16 14"><path d="M0 2a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2z" fill="#f5c842" stroke="#c8a000" stroke-width="0.8"/></svg>Articles</div>
+    <div class="folder-body">
+      <div class="file-item" onclick="openUrl('https://www.sciencedirect.com/science/article/pii/S0022103126000417?dgcid=rss_sd_all')">
+        <svg class="file-icon" viewBox="0 0 40 48"><rect x="2" y="2" width="30" height="44" rx="1" fill="#fff" stroke="#888" stroke-width="1"/><polygon points="24,2 32,2 32,10 24,10" fill="#ddd" stroke="#888" stroke-width="0.8"/><rect x="6" y="16" width="20" height="2" fill="#bbb"/><rect x="6" y="21" width="20" height="2" fill="#bbb"/><rect x="6" y="26" width="14" height="2" fill="#bbb"/></svg>
+        <span class="file-name">Is a random human peer better than a chatbot in reducing loneliness?</span>
+      </div>
+      <div class="file-item" onclick="openUrl('https://www.npr.org/series/g-s1-108331/education-ai')">
+        <svg class="file-icon" viewBox="0 0 40 48"><rect x="2" y="2" width="30" height="44" rx="1" fill="#fff" stroke="#888" stroke-width="1"/><polygon points="24,2 32,2 32,10 24,10" fill="#ddd" stroke="#888" stroke-width="0.8"/><rect x="6" y="16" width="20" height="2" fill="#bbb"/><rect x="6" y="21" width="20" height="2" fill="#bbb"/><rect x="6" y="26" width="14" height="2" fill="#bbb"/></svg>
+        <span class="file-name">Learning in the Age of AI — NPR</span>
+      </div>
+      <div class="file-item" onclick="openUrl('https://cccc.ncte.org/mla-cccc-joint-task-force-on-writing-and-ai')">
+        <svg class="file-icon" viewBox="0 0 40 48"><rect x="2" y="2" width="30" height="44" rx="1" fill="#fff" stroke="#888" stroke-width="1"/><polygon points="24,2 32,2 32,10 24,10" fill="#ddd" stroke="#888" stroke-width="0.8"/><rect x="6" y="16" width="20" height="2" fill="#bbb"/><rect x="6" y="21" width="20" height="2" fill="#bbb"/><rect x="6" y="26" width="14" height="2" fill="#bbb"/></svg>
+        <span class="file-name">MLA-CCCC Joint Task Force on Writing and AI</span>
+      </div>
+      <div class="file-item" onclick="openUrl('https://medium.com/center-on-privacy-technology/an-open-letter-to-georgetown-students-in-response-to-recent-announcements-about-generative-ai-8869dcd523ef')">
+        <svg class="file-icon" viewBox="0 0 40 48"><rect x="2" y="2" width="30" height="44" rx="1" fill="#fff" stroke="#888" stroke-width="1"/><polygon points="24,2 32,2 32,10 24,10" fill="#ddd" stroke="#888" stroke-width="0.8"/><rect x="6" y="16" width="20" height="2" fill="#bbb"/><rect x="6" y="21" width="20" height="2" fill="#bbb"/><rect x="6" y="26" width="14" height="2" fill="#bbb"/></svg>
+        <span class="file-name">An Open Letter to Georgetown Students about "Generative AI"</span>
+      </div>
+      <div class="file-item" onclick="openUrl('https://www.ibm.com/think/topics/vibe-coding')">
+        <svg class="file-icon" viewBox="0 0 40 48"><rect x="2" y="2" width="30" height="44" rx="1" fill="#fff" stroke="#888" stroke-width="1"/><polygon points="24,2 32,2 32,10 24,10" fill="#ddd" stroke="#888" stroke-width="0.8"/><rect x="6" y="16" width="20" height="2" fill="#bbb"/><rect x="6" y="21" width="20" height="2" fill="#bbb"/><rect x="6" y="26" width="14" height="2" fill="#bbb"/></svg>
+        <span class="file-name">What is Vibe Coding? — IBM</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="resource-folder">
+    <div class="folder-header"><svg width="16" height="14" viewBox="0 0 16 14"><path d="M0 2a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2z" fill="#f5c842" stroke="#c8a000" stroke-width="0.8"/></svg>Books</div>
+    <div class="folder-body">
+      <div class="file-item" onclick="openUrl('https://www.hachettebookgroup.com/titles/john-warner/more-than-words/9781541605510/')">
+        <svg class="file-icon" viewBox="0 0 40 48"><rect x="4" y="2" width="28" height="44" rx="1" fill="#b8ccff" stroke="#1c2a6e" stroke-width="1.2"/><rect x="4" y="2" width="5" height="44" fill="#1c2a6e"/><rect x="12" y="14" width="16" height="2" rx="0.5" fill="#fff"/><rect x="12" y="19" width="16" height="2" rx="0.5" fill="#fff"/><rect x="12" y="24" width="10" height="2" rx="0.5" fill="#fff"/></svg>
+        <span class="file-name">More Than Words — John Warner</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="resource-folder">
+    <div class="folder-header"><svg width="16" height="14" viewBox="0 0 16 14"><path d="M0 2a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2z" fill="#f5c842" stroke="#c8a000" stroke-width="0.8"/></svg>Tools &amp; Websites</div>
+    <div class="folder-body">
+      <div class="file-item" onclick="openUrl('https://aiassessmentscale.com/')">
+        <svg class="file-icon" viewBox="0 0 40 48"><rect x="2" y="8" width="36" height="32" rx="2" fill="#fff" stroke="#6e4e1c" stroke-width="1.2"/><rect x="2" y="8" width="36" height="8" fill="#6e4e1c"/><circle cx="8" cy="12" r="2" fill="#fff"/><circle cx="14" cy="12" r="2" fill="#fff"/><rect x="6" y="22" width="28" height="2" rx="1" fill="#ddd"/><rect x="6" y="27" width="28" height="2" rx="1" fill="#ddd"/><rect x="6" y="32" width="18" height="2" rx="1" fill="#ddd"/></svg>
+        <span class="file-name">The AI Assessment Scale (AIAS)</span>
+      </div>
+      <div class="file-item" onclick="openUrl('https://studentguidetoai.org/get-the-2025-student-guide-to-artificial-intelligence/')">
+        <svg class="file-icon" viewBox="0 0 40 48"><rect x="2" y="8" width="36" height="32" rx="2" fill="#fff" stroke="#6e4e1c" stroke-width="1.2"/><rect x="2" y="8" width="36" height="8" fill="#6e4e1c"/><circle cx="8" cy="12" r="2" fill="#fff"/><circle cx="14" cy="12" r="2" fill="#fff"/><rect x="6" y="22" width="28" height="2" rx="1" fill="#ddd"/><rect x="6" y="27" width="28" height="2" rx="1" fill="#ddd"/><rect x="6" y="32" width="18" height="2" rx="1" fill="#ddd"/></svg>
+        <span class="file-name">2025 Student Guide to AI</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">AI Symposium 2026 &bull; Research Remix: AI in the Real World<br>Built with Claude &bull; Artifacts of Life &bull; Amara Hand</div>
+  <div id="floppy-resources"></div>
+</div>
+
+<!-- ═══ CONTACT ═══ -->
+<div id="page-contact" class="page">
+  <div class="intro">
+    <p>Feel free to reach out — I'd love to connect with fellow educators and AI enthusiasts.</p>
+  </div>
+  <div class="contact-card">
+    <div class="contact-name">Amara Hand</div>
+    <div class="contact-row"><span class="contact-label">Email</span><span class="contact-value"><a href="mailto:ahand1@nccu.edu">ahand1@nccu.edu</a></span></div>
+    <div class="contact-row"><span class="contact-label">LinkedIn</span><span class="contact-value"><a href="https://linkedin.com/in/amarahandwrites" target="_blank">linkedin.com/in/amarahandwrites</a></span></div>
+    <div class="contact-row"><span class="contact-label">Website</span><span class="contact-value"><a href="https://amarahandwrites.co" target="_blank">amarahandwrites.co</a></span></div>
+  </div>
+  <div class="footer">AI Symposium 2026 &bull; Research Remix: AI in the Real World<br>Built with Claude &bull; Artifacts of Life &bull; Amara Hand</div>
+  <div id="floppy-contact"></div>
+</div>
+
+<!-- ═══ CREDITS OVERLAY ═══ -->
+<div id="credits-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:999;overflow-y:auto;padding:40px 24px 60px;">
+  <div style="max-width:500px;margin:0 auto;font-family:'Courier New',monospace;color:#00ff41;line-height:2;">
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="font-size:11px;color:#00aa2a;margin-bottom:8px;">C:\ARTIFACTS\LIFE&gt; credits.exe</div>
+      <div style="font-size:22px;font-weight:700;letter-spacing:0.1em;">ARTIFACTS OF LIFE</div>
+      <div style="font-size:11px;color:#00aa2a;margin-top:4px;">AI Symposium 2026</div>
+    </div>
+    <div style="border-top:1px solid #00aa2a;padding-top:20px;font-size:12px;">
+      <div style="margin-bottom:20px;">
+        <div style="color:#00aa2a;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;">Created &amp; Directed by</div>
+        <div style="font-size:15px;font-weight:700;">Amara Hand</div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <div style="color:#00aa2a;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;">All Artifacts Conceived, Prompted &amp; Refined by</div>
+        <div>Amara Hand</div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <div style="color:#00aa2a;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;">Code &amp; Content Generated by</div>
+        <div>Claude Sonnet</div>
+        <div style="font-size:10px;color:#00aa2a;">Anthropic &mdash; claude.ai</div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <div style="color:#00aa2a;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;">Custom GPT Built in</div>
+        <div>PlayLab AI</div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <div style="color:#00aa2a;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;">Slide Deck Designed in</div>
+        <div>Canva</div>
+        <div style="font-size:11px;color:#00aa2a;">Template: Grey Blue Pixel Tech Computer Presentation</div>
+        <div style="font-size:11px;color:#00aa2a;">Original template by <a href="https://www.canva.com/templates/?query=jonowa" target="_blank" style="color:#00ff41;">Jonowa</a> &mdash; edited by Amara Hand</div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <div style="color:#00aa2a;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;">Additional Resources Curated by</div>
+        <div>Amara Hand</div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <div style="color:#00aa2a;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;">Resources Featured</div>
+        <div><a href="https://www.sciencedirect.com/science/article/pii/S0022103126000417?dgcid=rss_sd_all" target="_blank" style="color:#00ff41;">Is a random human peer better than a highly supportive chatbot in reducing loneliness over time? &mdash; ScienceDirect</a></div>
+        <div><a href="https://www.npr.org/series/g-s1-108331/education-ai" target="_blank" style="color:#00ff41;">Learning in the Age of AI &mdash; NPR</a></div>
+        <div><a href="https://cccc.ncte.org/mla-cccc-joint-task-force-on-writing-and-ai" target="_blank" style="color:#00ff41;">MLA-CCCC Joint Task Force on Writing and AI</a></div>
+        <div><a href="https://medium.com/center-on-privacy-technology/an-open-letter-to-georgetown-students-in-response-to-recent-announcements-about-generative-ai-8869dcd523ef" target="_blank" style="color:#00ff41;">An Open Letter to Georgetown Students about "Generative AI" &mdash; Georgetown Law</a></div>
+        <div><a href="https://www.ibm.com/think/topics/vibe-coding" target="_blank" style="color:#00ff41;">What is Vibe Coding? &mdash; IBM</a></div>
+        <div><a href="https://www.hachettebookgroup.com/titles/john-warner/more-than-words/9781541605510/" target="_blank" style="color:#00ff41;">More Than Words &mdash; John Warner</a></div>
+        <div><a href="https://aiassessmentscale.com/" target="_blank" style="color:#00ff41;">The AI Assessment Scale (AIAS)</a></div>
+        <div><a href="https://studentguidetoai.org/get-the-2025-student-guide-to-artificial-intelligence/" target="_blank" style="color:#00ff41;">2025 Student Guide to Artificial Intelligence</a></div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <div style="color:#00aa2a;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;">This Site Built with</div>
+        <div>Claude &amp; approximately zero lines of hand-written code</div>
+      </div>
+      <div style="border-top:1px solid #00aa2a;padding-top:20px;margin-bottom:20px;">
+        <div style="color:#00aa2a;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;">Special Thanks</div>
+        <div>To NCCU, IAIER, the Writing &amp; Speaking Studio, my colleagues in the Office of e-Learning, my students, and the people who inspire me every day.</div>
+      </div>
+      <div style="border-top:1px solid #00aa2a;padding-top:20px;margin-bottom:32px;text-align:center;font-style:italic;font-size:12px;color:#00cc33;">
+        "No code was harmed in the making of these artifacts.<br>All prompts were written by a human who believes<br>imagination is still the most important skill."
+      </div>
+      <div style="text-align:center;font-size:11px;color:#00aa2a;margin-bottom:8px;">&copy; 2026 Amara Hand &bull; Artifacts of Life</div>
+    </div>
+    <div style="text-align:center;margin-top:32px;">
+      <button onclick="closeCredits()" style="font-family:'Courier New',monospace;font-size:11px;font-weight:700;background:transparent;color:#00ff41;border:1px solid #00ff41;padding:8px 20px;cursor:pointer;">[ CLOSE ]</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const floppyHTML = `<div style="text-align:center;margin-top:24px;"><div class="credits-trigger" onclick="openCredits()" title="Credits"><svg width="36" height="36" viewBox="0 0 36 36"><rect x="3" y="3" width="30" height="30" rx="3" fill="#222" stroke="#555" stroke-width="1.5"/><rect x="7" y="6" width="22" height="14" rx="1" fill="#444"/><rect x="10" y="9" width="8" height="8" rx="1" fill="#888"/><rect x="12" y="11" width="4" height="4" rx="0.5" fill="#555"/><rect x="7" y="24" width="22" height="6" rx="1" fill="#333" stroke="#555" stroke-width="0.8"/><rect x="14" y="26" width="8" height="2" rx="0.5" fill="#666"/></svg><p style="font-size:9px;color:#aaa;margin-top:4px;font-family:'Courier New',monospace;">credits</p></div></div>`;
+  ['floppy-home','floppy-portfolio','floppy-resources','floppy-contact'].forEach(id => {
+    document.getElementById(id).innerHTML = floppyHTML;
+  });
+  function openCredits() { document.getElementById('credits-overlay').style.display = 'block'; document.body.style.overflow = 'hidden'; }
+  function closeCredits() { document.getElementById('credits-overlay').style.display = 'none'; document.body.style.overflow = ''; }
+  function showTab(tab, el) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + tab).classList.add('active');
+    el.classList.add('active');
+  }
+  function go(id) { const url = document.getElementById(id).value.trim(); if (!url) return false; window.open(url, '_blank'); return false; }
+  function openUrl(url) { window.open(url, '_blank'); }
+  let dragSrc = null;
+  function initDrag(list) {
+    list.addEventListener('dragstart', e => { dragSrc = e.target.closest('.artifact-item'); if (!dragSrc) return; setTimeout(() => dragSrc.classList.add('dragging'), 0); });
+    list.addEventListener('dragend', () => { document.querySelectorAll('.artifact-item').forEach(el => el.classList.remove('dragging','drag-over')); });
+    list.addEventListener('dragover', e => { e.preventDefault(); const t = e.target.closest('.artifact-item'); if (!t || t === dragSrc) return; document.querySelectorAll('.artifact-item').forEach(el => el.classList.remove('drag-over')); t.classList.add('drag-over'); });
+    list.addEventListener('drop', e => { e.preventDefault(); const t = e.target.closest('.artifact-item'); if (!t || t === dragSrc) return; const items = [...list.querySelectorAll('.artifact-item')]; if (items.indexOf(dragSrc) < items.indexOf(t)) list.insertBefore(dragSrc, t.nextSibling); else list.insertBefore(dragSrc, t); t.classList.remove('drag-over'); });
+  }
+  function initTouch(list) {
+    let ti = null, cl = null, oy = 0;
+    list.addEventListener('touchstart', e => { const ic = e.target.closest('.artifact-icon-col'); if (!ic) return; ti = ic.closest('.artifact-item'); const r = ti.getBoundingClientRect(); oy = e.touches[0].clientY - r.top; cl = ti.cloneNode(true); cl.style.cssText = `position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;opacity:0.8;z-index:999;pointer-events:none;background:#e8eeff;border:2px dashed #1c2a6e;`; document.body.appendChild(cl); ti.classList.add('dragging'); }, {passive:true});
+    list.addEventListener('touchmove', e => { if (!ti) return; e.preventDefault(); const y = e.touches[0].clientY; cl.style.top = (y-oy)+'px'; const els = [...list.querySelectorAll('.artifact-item:not(.dragging)')]; els.forEach(el => el.classList.remove('drag-over')); const b = els.find(el => y < el.getBoundingClientRect().top + el.getBoundingClientRect().height/2); if (b) b.classList.add('drag-over'); }, {passive:false});
+    list.addEventListener('touchend', e => { if (!ti) return; const y = e.changedTouches[0].clientY; const els = [...list.querySelectorAll('.artifact-item:not(.dragging)')]; const b = els.find(el => y < el.getBoundingClientRect().top + el.getBoundingClientRect().height/2); if (b) list.insertBefore(ti, b); else list.appendChild(ti); ti.classList.remove('dragging'); els.forEach(el => el.classList.remove('drag-over')); cl.remove(); ti = null; cl = null; }, {passive:true});
+  }
+  document.querySelectorAll('.artifact-list').forEach(list => { initDrag(list); initTouch(list); });
+</script>
+</body>
+</html>
