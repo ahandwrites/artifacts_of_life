@@ -1,0 +1,504 @@
+import { useState, useRef } from "react";
+
+const TEAL = "#5f9ea0";
+const TEAL_LIGHT = "#e8f4f4";
+const TEAL_MED = "#a8d5d5";
+const BG = "#f7f6f3";
+const CARD = "#ffffff";
+const TEXT = "#2d2d2d";
+const MUTED = "#6b7280";
+const BORDER = "#e0e0dc";
+
+const FORM_TITLE = "AI Disclosure Form";
+
+const aiRoles = [
+  { id: "none", label: "I didn't use AI", desc: "This work is entirely my own." },
+  { id: "minor", label: "Minor assistant", desc: "I used AI for small tasks (e.g., grammar check, brainstorming a word)." },
+  { id: "research", label: "Research/thinking partner", desc: "AI helped me explore ideas, understand concepts, or find sources." },
+  { id: "collaborator", label: "Collaborator", desc: "AI helped me draft, reorganize, or substantially revise sections." },
+  { id: "primary", label: "Primary drafter", desc: "AI wrote most of the content; I directed, edited, and refined it." },
+];
+
+const processParts = [
+  "Brainstorming / generating ideas",
+  "Outlining / structuring my argument",
+  "Finding or summarizing sources",
+  "Drafting paragraphs or sections",
+  "Revising or editing my own writing",
+  "Checking grammar, style, or clarity",
+  "Generating citations or references",
+  "Creating a title or introduction/conclusion",
+];
+
+const aiTools = ["ChatGPT", "Claude", "Gemini", "Microsoft Copilot", "Grammarly", "Perplexity"];
+
+const fmtDate = d => d ? new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }) : "";
+const firstName = name => name ? name.trim().split(" ")[0] : "";
+const personalTitle = name => firstName(name) ? firstName(name) + "'s " + FORM_TITLE : FORM_TITLE;
+
+const s = {
+  wrap: { minHeight: "100vh", background: BG, fontFamily: "'Segoe UI', system-ui, sans-serif", color: TEXT, padding: "2rem 1rem 4rem" },
+  inner: { maxWidth: 720, margin: "0 auto", paddingTop: "60px" },
+  header: { textAlign: "center", marginBottom: "2rem" },
+  badge: { display: "inline-block", background: TEAL, color: "#fff", borderRadius: 20, padding: "4px 14px", fontSize: 12, fontWeight: 600, letterSpacing: 1, marginBottom: 12, textTransform: "uppercase", cursor: "pointer", userSelect: "none" },
+  h1: { fontSize: "1.85rem", fontWeight: 700, color: TEXT, margin: "0 0 4px" },
+  instruction: { color: MUTED, fontSize: "0.9rem", margin: 0 },
+  oriCard: { background: TEAL_LIGHT, border: "1.5px solid " + TEAL_MED, borderRadius: 14, padding: "1.2rem 1.5rem", marginBottom: "1.8rem" },
+  oriText: { margin: 0, lineHeight: 1.65, fontSize: "0.95rem", color: "#3a5a5a" },
+  card: { background: CARD, border: "1px solid " + BORDER, borderRadius: 16, padding: "1.4rem 1.6rem", marginBottom: "1.4rem", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" },
+  sectionLabel: { display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem" },
+  sectionNum: { background: TEAL, color: "#fff", borderRadius: "50%", width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 },
+  sectionTitle: { fontWeight: 700, fontSize: "1.05rem", color: TEXT },
+  label: { display: "block", fontWeight: 600, fontSize: "0.88rem", color: MUTED, marginBottom: 5, marginTop: 14, textTransform: "uppercase", letterSpacing: 0.5 },
+  input: { width: "100%", border: "1.5px solid " + BORDER, borderRadius: 9, padding: "9px 12px", fontSize: "0.97rem", outline: "none", background: "#fafaf9", boxSizing: "border-box" },
+  textarea: { width: "100%", border: "1.5px solid " + BORDER, borderRadius: 9, padding: "9px 12px", fontSize: "0.97rem", outline: "none", background: "#fafaf9", resize: "vertical", boxSizing: "border-box", minHeight: 110, lineHeight: 1.6 },
+  radioRow: { display: "flex", flexDirection: "column", gap: 10, marginTop: 8 },
+  radioOpt: sel => ({ display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 14px", borderRadius: 10, border: "1.5px solid " + (sel ? TEAL : BORDER), background: sel ? TEAL_LIGHT : "#fafaf9", cursor: "pointer" }),
+  radioCircle: sel => ({ width: 18, height: 18, borderRadius: "50%", border: "2px solid " + (sel ? TEAL : "#ccc"), background: sel ? TEAL : "#fff", flexShrink: 0, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "center" }),
+  radioDot: { width: 8, height: 8, borderRadius: "50%", background: "#fff" },
+  checkRow: { display: "flex", alignItems: "center", gap: 10, padding: "8px 0", cursor: "pointer" },
+  checkBox: sel => ({ width: 18, height: 18, borderRadius: 5, border: "2px solid " + (sel ? TEAL : "#ccc"), background: sel ? TEAL : "#fff", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }),
+  checkMark: { color: "#fff", fontSize: 13, lineHeight: 1, fontWeight: 700 },
+  tip: { background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 10, padding: "0.9rem 1.1rem", marginTop: 14 },
+  tipTitle: { fontWeight: 700, fontSize: "0.87rem", color: "#92400e", marginBottom: 4 },
+  tipText: { fontSize: "0.85rem", color: "#78350f", lineHeight: 1.55, margin: 0 },
+  integrityBox: { background: "#f9fafb", border: "1px solid " + BORDER, borderRadius: 10, padding: "1rem 1.2rem", marginBottom: 14, fontSize: "0.92rem", lineHeight: 1.65, color: TEXT },
+  btnPrimary: dis => ({ background: dis ? "#b0cece" : TEAL, color: "#fff", border: "none", borderRadius: 11, padding: "13px 28px", fontSize: "1rem", fontWeight: 700, cursor: dis ? "not-allowed" : "pointer", width: "100%", marginTop: 8 }),
+  outputCard: { background: "#f0fafa", border: "2px solid " + TEAL_MED, borderRadius: 16, padding: "1.6rem", marginBottom: "1.4rem" },
+  outputPre: { whiteSpace: "pre-wrap", fontFamily: "monospace", fontSize: "0.85rem", lineHeight: 1.7, color: TEXT, margin: 0 },
+  btnRow: { display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 },
+  btnSec: { background: TEAL, color: "#fff", border: "none", borderRadius: 9, padding: "10px 20px", fontSize: "0.93rem", fontWeight: 600, cursor: "pointer" },
+  btnOutline: { background: "#fff", color: TEAL, border: "2px solid " + TEAL, borderRadius: 9, padding: "10px 20px", fontSize: "0.93rem", fontWeight: 600, cursor: "pointer" },
+};
+
+function Tooltip({ text }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+      <div onMouseEnter={() => setVisible(true)} onMouseLeave={() => setVisible(false)} onClick={() => setVisible(v => !v)}
+        style={{ width: 20, height: 20, borderRadius: "50%", background: TEAL, color: "#fff", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, userSelect: "none" }}>?</div>
+      {visible && (
+        <div style={{ position: "absolute", top: 28, left: "50%", transform: "translateX(-50%)", background: "#2d2d2d", color: "#fff", fontSize: "0.82rem", lineHeight: 1.6, padding: "10px 14px", borderRadius: 10, width: 280, zIndex: 2000, boxShadow: "0 4px 16px rgba(0,0,0,0.18)" }}>
+          <div style={{ position: "absolute", top: -6, left: "50%", transform: "translateX(-50%)", width: 0, height: 0, borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderBottom: "6px solid #2d2d2d" }} />
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return <div><label style={s.label}>{label}</label>{children}</div>;
+}
+
+function RadioGroup({ options, value, onChange }) {
+  return (
+    <div style={s.radioRow}>
+      {options.map(opt => {
+        const sel = value === opt.id;
+        return (
+          <div key={opt.id} style={s.radioOpt(sel)} onClick={() => onChange(opt.id)}>
+            <div style={s.radioCircle(sel)}>{sel && <div style={s.radioDot} />}</div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{opt.label}</div>
+              {opt.desc && <div style={{ fontSize: "0.85rem", color: MUTED, marginTop: 2 }}>{opt.desc}</div>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CheckGroup({ options, selected, onChange, otherValue, onOtherChange }) {
+  const toggle = opt => onChange(selected.includes(opt) ? selected.filter(x => x !== opt) : [...selected, opt]);
+  return (
+    <div style={{ marginTop: 8 }}>
+      {options.map(opt => (
+        <div key={opt} style={s.checkRow} onClick={() => toggle(opt)}>
+          <div style={s.checkBox(selected.includes(opt))}>{selected.includes(opt) && <span style={s.checkMark}>✓</span>}</div>
+          <span style={{ fontSize: "0.95rem" }}>{opt}</span>
+        </div>
+      ))}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0" }}>
+        <div style={{ ...s.checkBox(!!otherValue), marginTop: 2 }}>{otherValue ? <span style={s.checkMark}>✓</span> : null}</div>
+        <div style={{ flex: 1 }}>
+          <span style={{ fontSize: "0.95rem" }}>Other: </span>
+          <input style={{ ...s.input, marginTop: 4 }} placeholder="Please specify..." value={otherValue} onChange={e => onOtherChange(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function generateHTML(form) {
+  const usedAI = form.aiRole && form.aiRole !== "none";
+  const roleObj = aiRoles.find(r => r.id === form.aiRole);
+  const allProcess = [...form.processParts, ...(form.processOther.trim() ? ["Other: " + form.processOther] : [])];
+  const allTools = [...form.tools, ...(form.toolOther.trim() ? ["Other: " + form.toolOther] : [])];
+  const esc = str => String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+  const field = (label, value) => '<div class="field"><div class="field-label">' + label + '</div><div class="field-value">' + esc(value) + "</div></div>";
+  const chips = items => items.length ? '<div class="chips">' + items.map(i => '<span class="chip">' + esc(i) + "</span>").join("") + "</div>" : "";
+  const section = (num, title, body) => '<div class="section"><div class="sec-head"><div class="sec-num">' + num + '</div><div class="sec-title">' + title + "</div></div>" + body + "</div>";
+  const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const docTitle = personalTitle(form.studentName);
+
+  return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>" + esc(docTitle) + "</title><style>" +
+    "*{box-sizing:border-box;margin:0;padding:0}" +
+    "body{font-family:'Segoe UI',system-ui,sans-serif;color:#2d2d2d;background:#fff;}" +
+    ".page{max-width:720px;margin:0 auto;padding:60px 48px 60px}" +
+    ".header{background:#5f9ea0;color:#fff;padding:22px 48px 18px;margin:-60px -48px 28px}" +
+    ".header-badge{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;opacity:.85;margin-bottom:4px}" +
+    ".header h1{font-size:20px;font-weight:700;margin-bottom:4px}" +
+    ".header p{font-size:10px;opacity:.8;line-height:1.5}" +
+    ".intro{background:#e8f4f4;border:1.5px solid #a8d5d5;border-radius:10px;padding:11px 14px;margin-bottom:22px;font-size:10px;color:#3a5a5a;line-height:1.65}" +
+    ".section{margin-bottom:22px;page-break-inside:avoid}" +
+    ".sec-head{display:flex;align-items:center;gap:8px;border-bottom:2px solid #e8f4f4;padding-bottom:7px;margin-bottom:12px}" +
+    ".sec-num{background:#5f9ea0;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}" +
+    ".sec-title{font-size:12px;font-weight:700;color:#1a1a1a}" +
+    ".field{margin-bottom:9px}" +
+    ".field-label{font-size:7.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}" +
+    ".field-value{background:#f7f6f3;border:1px solid #e0e0dc;border-radius:5px;padding:7px 10px;font-size:10px;line-height:1.65;min-height:28px}" +
+    ".role-box{border-left:4px solid #5f9ea0;background:#e8f4f4;padding:9px 13px;font-size:10px;line-height:1.6;border-radius:0 6px 6px 0}" +
+    ".chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}" +
+    ".chip{background:#5f9ea0;color:#fff;border-radius:20px;padding:3px 10px;font-size:9px;font-weight:600}" +
+    ".integrity-text{background:#f9fafb;border:1px solid #e0e0dc;border-radius:6px;padding:9px 12px;font-size:9.5px;line-height:1.7;margin-bottom:9px}" +
+    ".ack{display:flex;align-items:center;gap:9px;font-size:10px;font-weight:600;color:#3a5a5a}" +
+    ".ack-box{width:15px;height:15px;background:#5f9ea0;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:11px;flex-shrink:0}" +
+    ".footer{margin-top:32px;padding-top:10px;border-top:1px solid #e0e0dc;font-size:8px;color:#9ca3af;display:flex;justify-content:space-between}" +
+    ".print-bar{position:fixed;top:0;left:0;right:0;background:#2d2d2d;color:#fff;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.2)}" +
+    ".print-bar-title{font-size:13px;font-weight:600;opacity:0.9}" +
+    ".print-bar-btns{display:flex;gap:10px}" +
+    ".btn-print{background:#5f9ea0;color:#fff;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer}" +
+    ".btn-close{background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:7px;padding:7px 14px;font-size:13px;cursor:pointer}" +
+    "@media print{@page{margin:0.5in}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-bar{display:none}}" +
+    "</style></head><body>" +
+    "<div class=\"print-bar\"><span class=\"print-bar-title\">" + esc(docTitle) + "</span><div class=\"print-bar-btns\"><button onclick=\"window.print()\" class=\"btn-print\">🖨 Print / Save as PDF</button><button onclick=\"window.close()\" class=\"btn-close\">✕ Close</button></div></div>" +
+    "<div class=\"page\">" +
+    "<div class=\"header\"><div class=\"header-badge\">AI Transparency</div><h1>" + esc(docTitle) + "</h1><p>Complete, download, and attach this form to your assignment submission &nbsp;&middot;&nbsp; Generated: " + dateStr + "</p></div>" +
+    "<div class=\"intro\">AI tools are becoming a part of how many of us research, write, and think through ideas. This form invites you to reflect honestly on how you engaged with AI in your assignments \u2014 or why you chose not to. <strong>There\u2019s no right or wrong answer, only honest answers.</strong><br><br>Your responses help your instructor understand your process and support a culture of academic transparency. This also gives you a moment to think critically about your own learning. Please take a few minutes to answer each question thoughtfully before submitting your work.</div>" +
+    section(1, "Assignment Information", field("Student Name", form.studentName) + field("Course Name & Number", form.courseName) + field("Assignment Title", form.assignmentTitle) + field("Instructor Name", form.instructorName) + field("Date of Submission", fmtDate(form.submissionDate))) +
+    section(2, "Degree of AI Use", "<div class=\"role-box\"><strong>" + esc(roleObj ? roleObj.label : "") + "</strong> \u2014 " + esc(roleObj ? roleObj.desc : "") + "</div>") +
+    (usedAI && allProcess.length ? section("2b", "Parts of the Writing Process", chips(allProcess)) : "") +
+    (usedAI && allTools.length ? section(3, "Tools Used", chips(allTools)) : "") +
+    section(4, "Process Description", "<div class=\"field-label\">" + (usedAI ? "How AI was used, prompts given, and what was accepted, revised, or rejected" : "Writing process without AI") + "</div><div class=\"field-value\">" + esc(form.processDesc) + "</div>") +
+    (usedAI && (form.transcriptUrl.trim() || form.transcriptFile) ? section(5, "AI Chat Transcript", (form.transcriptUrl.trim() ? field("Shareable Link", form.transcriptUrl) : "") + (form.transcriptFile ? field("Uploaded File", form.transcriptFile.name) : "")) : "") +
+    section(6, "Reflection", "<div class=\"field-label\">How AI use (or the choice not to use it) affected learning on this assignment</div><div class=\"field-value\">" + esc(form.reflection) + "</div>") +
+    section(7, "Academic Integrity Acknowledgment", "<div class=\"integrity-text\">I affirm that the information provided in this disclosure is accurate and complete to the best of my knowledge. I understand that honesty about AI use is a fundamental part of academic integrity in this course. I have reviewed the AI use policy outlined in the course syllabus, and I acknowledge that misrepresenting my use of AI tools \u2014 including omitting significant AI contributions \u2014 constitutes a violation of academic integrity standards. I take full responsibility for all work submitted under my name, including work that was AI-assisted, and I am committed to transparency in my learning process.</div><div class=\"ack\"><div class=\"ack-box\">\u2713</div> I have read and agree to the above statement.</div>") +
+    "<div class=\"footer\"><span>" + esc(form.studentName) + " \u00b7 " + esc(form.courseName) + " \u00b7 " + esc(form.instructorName) + " \u00b7 " + fmtDate(form.submissionDate) + "</span><span>Created by Amara Hand, Director, Writing Studio, North Carolina Central University \u00b7 Built with Claude</span></div>" +
+    "</div></body></html>";
+}
+
+export default function App() {
+  const [form, setForm] = useState({
+    studentName: "", courseName: "", assignmentTitle: "", instructorName: "", submissionDate: "",
+    aiRole: "", processParts: [], processOther: "", tools: [], toolOther: "",
+    processDesc: "", transcriptUrl: "", transcriptFile: null, reflection: "", integrity: false,
+  });
+  const [submitted, setSubmitted] = useState(false);
+  const [output, setOutput] = useState("");
+  const [copied, setCopied] = useState(false);
+  const fileRef = useRef();
+  const badgeClickCount = useRef(0);
+  const badgeClickTimer = useRef(null);
+
+  const usedAI = form.aiRole && form.aiRole !== "none";
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const calcProgress = () => {
+    let completed = 0;
+    if (form.studentName.trim() && form.courseName.trim() && form.assignmentTitle.trim() && form.instructorName.trim() && form.submissionDate) completed++;
+    if (form.aiRole) completed++;
+    if (form.aiRole === "none") completed += 2;
+    else if (form.aiRole && (form.processParts.length > 0 || form.processOther.trim())) completed++;
+    if (form.aiRole === "none" || (form.aiRole && (form.tools.length > 0 || form.toolOther.trim()))) completed++;
+    if (form.processDesc.trim()) completed++;
+    if (form.reflection.trim()) completed++;
+    if (form.integrity) completed++;
+    return { completed: Math.min(completed, 7), total: 7 };
+  };
+
+  const buildOutput = (f) => {
+    const roleObj = aiRoles.find(r => r.id === f.aiRole);
+    const allProcess = [...f.processParts, ...(f.processOther.trim() ? ["Other: " + f.processOther] : [])];
+    const allTools = [...f.tools, ...(f.toolOther.trim() ? ["Other: " + f.toolOther] : [])];
+    const docTitle = personalTitle(f.studentName).toUpperCase();
+    const bar = "═══════════════════════════════════════════════════════";
+    const lines = [bar, "          " + docTitle, bar, "",
+      "ASSIGNMENT INFORMATION", "──────────────────────",
+      "Student Name:      " + f.studentName,
+      "Course:            " + f.courseName,
+      "Assignment:        " + f.assignmentTitle,
+      "Instructor:        " + f.instructorName,
+      "Date Submitted:    " + fmtDate(f.submissionDate), "",
+      "AI USE", "──────",
+      "AI Role:  " + (roleObj ? roleObj.label + " — " + roleObj.desc : ""),
+    ];
+    if (f.aiRole !== "none") {
+      lines.push("", "Parts of Writing Process:", ...allProcess.map(p => "  • " + p));
+      lines.push("", "Tools Used:", ...allTools.map(t => "  • " + t));
+    }
+    lines.push("", "PROCESS DESCRIPTION", "───────────────────", f.processDesc);
+    if (f.aiRole !== "none" && (f.transcriptUrl.trim() || f.transcriptFile)) {
+      lines.push("", "AI CHAT TRANSCRIPT", "──────────────────");
+      if (f.transcriptUrl.trim()) lines.push("Link: " + f.transcriptUrl);
+      if (f.transcriptFile) lines.push("File: " + f.transcriptFile.name);
+    }
+    lines.push("", "REFLECTION", "──────────", f.reflection,
+      "", "ACADEMIC INTEGRITY", "──────────────────",
+      "Student confirmed: ✓ I acknowledge the above integrity statement.",
+      "", bar);
+    return lines.join("\n");
+  };
+
+  const handleBadgeClick = () => {
+    badgeClickCount.current += 1;
+    clearTimeout(badgeClickTimer.current);
+    if (badgeClickCount.current >= 3) {
+      badgeClickCount.current = 0;
+      const sample = {
+        studentName: "Jordan Rivera", courseName: "ENGL 2200 – Writing & Rhetoric",
+        assignmentTitle: "Rhetorical Analysis Essay", instructorName: "Dr. Priya Anand",
+        submissionDate: "2026-02-19", aiRole: "collaborator",
+        processParts: ["Brainstorming / generating ideas", "Outlining / structuring my argument", "Revising or editing my own writing"],
+        processOther: "", tools: ["ChatGPT", "Grammarly"], toolOther: "",
+        processDesc: "I used ChatGPT to help me brainstorm counterarguments after I had already written my thesis. I gave it my thesis statement and asked it to steelman the opposing view. It suggested three counterarguments — I used one, rewrote it substantially in my own voice, and rejected the other two because they didn't fit my line of reasoning. I then used Grammarly to catch grammatical errors in my final draft.",
+        transcriptUrl: "https://chat.openai.com/share/example-link", transcriptFile: null,
+        reflection: "Using AI pushed me to think more critically about my own argument. Having to evaluate its suggestions forced me to articulate why I disagreed with certain framings, which actually strengthened my thesis. Next time I'd try drafting the full essay first before consulting AI.",
+        integrity: true,
+      };
+      setForm(sample);
+      setOutput(buildOutput(sample));
+      setSubmitted(true);
+    } else {
+      badgeClickTimer.current = setTimeout(() => { badgeClickCount.current = 0; }, 600);
+    }
+  };
+
+  const requiredFilled = () => {
+    if (!form.studentName.trim() || !form.courseName.trim() || !form.assignmentTitle.trim() || !form.instructorName.trim() || !form.submissionDate) return false;
+    if (!form.aiRole) return false;
+    if (usedAI && form.processParts.length === 0 && !form.processOther.trim()) return false;
+    if (usedAI && form.tools.length === 0 && !form.toolOther.trim()) return false;
+    if (!form.processDesc.trim() || !form.reflection.trim() || !form.integrity) return false;
+    return true;
+  };
+
+  const generate = () => {
+    setOutput(buildOutput(form));
+    setSubmitted(true);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
+  };
+
+  // ── FIXED: Blob-based download — works in sandboxed environments ──
+  const handleDownloadHTML = () => {
+    const html = generateHTML(form);
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = (firstName(form.studentName) || "Student") + "_AI_Disclosure.html";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const copyToClipboard = () => {
+    const ta = document.createElement("textarea");
+    ta.value = output;
+    ta.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand("copy"); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch(e) {}
+    document.body.removeChild(ta);
+  };
+
+  const downloadTxt = () => {
+    const a = document.createElement("a");
+    a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(output);
+    a.download = (firstName(form.studentName) || "Student") + "_AI_Disclosure.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const reset = () => {
+    setForm({ studentName: "", courseName: "", assignmentTitle: "", instructorName: "", submissionDate: "", aiRole: "", processParts: [], processOther: "", tools: [], toolOther: "", processDesc: "", transcriptUrl: "", transcriptFile: null, reflection: "", integrity: false });
+    setSubmitted(false);
+    setOutput("");
+  };
+
+  const prog = calcProgress();
+  const pct = Math.round((prog.completed / prog.total) * 100);
+
+  if (submitted) {
+    return (
+      <div style={s.wrap}>
+        <div style={s.inner}>
+          <div style={s.header}>
+            <div style={s.badge} onClick={handleBadgeClick}>AI Transparency</div>
+            <h1 style={s.h1}>{personalTitle(form.studentName)}</h1>
+            <p style={s.instruction}>Download your form, then open it in your browser to print or save as PDF.</p>
+          </div>
+
+          {/* ── UPDATED download card ── */}
+          <div style={{ background: TEAL_LIGHT, border: "1.5px solid " + TEAL_MED, borderRadius: 14, padding: "1.2rem 1.5rem", marginBottom: "1.4rem" }}>
+            <div style={{ fontWeight: 700, fontSize: "1rem", color: "#3a5a5a", marginBottom: 6 }}>📄 Save as PDF — two steps</div>
+            <ol style={{ paddingLeft: "1.3rem", fontSize: "0.9rem", color: "#3a5a5a", lineHeight: 1.85, marginBottom: 14 }}>
+              <li><strong>Click "Download as HTML"</strong> below — a formatted file saves to your device.</li>
+              <li><strong>Open that file in Chrome or Firefox</strong>, then choose <strong>File → Print → Save as PDF</strong>.</li>
+            </ol>
+            <button style={{ ...s.btnSec, whiteSpace: "nowrap" }} onClick={handleDownloadHTML}>
+              ⬇ Download as HTML
+            </button>
+          </div>
+
+          <div style={s.outputCard}>
+            <div style={{ fontWeight: 700, fontSize: "0.9rem", color: MUTED, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>Plain Text Preview</div>
+            <pre style={s.outputPre}>{output}</pre>
+          </div>
+          <div style={s.btnRow}>
+            <button style={s.btnSec} onClick={copyToClipboard}>{copied ? "✓ Copied!" : "Copy to Clipboard"}</button>
+            <button style={s.btnSec} onClick={downloadTxt}>Download as .txt</button>
+            <button style={s.btnOutline} onClick={reset}>Start Over</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={s.wrap}>
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, background: "rgba(247,246,243,0.97)", borderBottom: "1px solid " + BORDER, padding: "10px 24px", backdropFilter: "blur(6px)" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+            <span style={{ fontSize: "0.78rem", fontWeight: 600, color: MUTED }}>{FORM_TITLE}</span>
+            <span style={{ fontSize: "0.78rem", fontWeight: 700, color: prog.completed === prog.total ? TEAL : MUTED }}>{prog.completed} of {prog.total} sections complete</span>
+          </div>
+          <div style={{ background: "#e0e0dc", borderRadius: 99, height: 6, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: pct + "%", background: TEAL, borderRadius: 99, transition: "width 0.4s ease" }} />
+          </div>
+        </div>
+      </div>
+
+      <div style={s.inner}>
+        <div style={s.header}>
+          <div style={s.badge} onClick={handleBadgeClick}>AI Transparency</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 6 }}>
+            <h1 style={{ ...s.h1, margin: 0 }}>{FORM_TITLE}</h1>
+            <Tooltip text="This form is built on trust between you and your instructor. We know that disclosing how you used AI — or didn't — can feel uncomfortable, especially when the rules around AI are still evolving. But learning to reflect honestly on your tools and process is itself a skill worth developing." />
+          </div>
+          <p style={s.instruction}>Complete, download, and attach this form to your assignment submission.</p>
+        </div>
+
+        <div style={s.oriCard}>
+          <p style={s.oriText}>
+            AI tools are becoming a part of how many of us research, write, and think through ideas. This form invites you to reflect honestly on how you engaged with AI in your assignments — or why you chose not to. <strong>There's no right or wrong answer, only honest answers.</strong>
+            <br /><br />
+            Your responses help your instructor understand your process and support a culture of academic transparency. This also gives you a moment to think critically about your own learning. Please take a few minutes to answer each question thoughtfully before submitting your work.
+          </p>
+        </div>
+
+        <div style={s.card}>
+          <div style={s.sectionLabel}><div style={s.sectionNum}>1</div><span style={s.sectionTitle}>Assignment Information</span></div>
+          <Field label="Student Name"><input style={s.input} placeholder="Your full name" value={form.studentName} onChange={e => set("studentName", e.target.value)} /></Field>
+          <Field label="Course Name & Number"><input style={s.input} placeholder="e.g., ENGL 1101 – Composition I" value={form.courseName} onChange={e => set("courseName", e.target.value)} /></Field>
+          <Field label="Assignment Title"><input style={s.input} placeholder="e.g., Rhetorical Analysis Essay" value={form.assignmentTitle} onChange={e => set("assignmentTitle", e.target.value)} /></Field>
+          <Field label="Instructor Name"><input style={s.input} placeholder="Your instructor's full name" value={form.instructorName} onChange={e => set("instructorName", e.target.value)} /></Field>
+          <Field label="Date of Submission">
+            <input style={{ ...s.input, colorScheme: "light" }} type="date" value={form.submissionDate} onChange={e => set("submissionDate", e.target.value)} />
+            {form.submissionDate && <div style={{ fontSize: "0.82rem", color: MUTED, marginTop: 4 }}>{fmtDate(form.submissionDate)}</div>}
+          </Field>
+        </div>
+
+        <div style={s.card}>
+          <div style={s.sectionLabel}><div style={s.sectionNum}>2</div><span style={s.sectionTitle}>Degree of AI Use</span></div>
+          <p style={{ margin: "0 0 6px", fontSize: "0.97rem", fontWeight: 600 }}>In this assignment, AI acted as my…</p>
+          <RadioGroup options={aiRoles} value={form.aiRole} onChange={v => set("aiRole", v)} />
+        </div>
+
+        {usedAI && (
+          <div style={s.card}>
+            <div style={s.sectionLabel}><div style={s.sectionNum}>2b</div><span style={s.sectionTitle}>Parts of the Writing Process</span></div>
+            <p style={{ margin: "0 0 4px", fontSize: "0.93rem", color: MUTED }}>Select all stages where AI played a role.</p>
+            <CheckGroup options={processParts} selected={form.processParts} onChange={v => set("processParts", v)} otherValue={form.processOther} onOtherChange={v => set("processOther", v)} />
+          </div>
+        )}
+
+        {usedAI && (
+          <div style={s.card}>
+            <div style={s.sectionLabel}><div style={s.sectionNum}>3</div><span style={s.sectionTitle}>Tools Used</span></div>
+            <p style={{ margin: "0 0 4px", fontSize: "0.93rem", color: MUTED }}>Select all AI tools you used for this assignment.</p>
+            <CheckGroup options={aiTools} selected={form.tools} onChange={v => set("tools", v)} otherValue={form.toolOther} onOtherChange={v => set("toolOther", v)} />
+          </div>
+        )}
+
+        <div style={s.card}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem" }}>
+            <div style={s.sectionNum}>4</div>
+            <span style={s.sectionTitle}>Process Description</span>
+            <Tooltip text="The most helpful responses are specific — name the tool, describe the prompt, and explain what you did with the result." />
+          </div>
+          <p style={{ margin: "0 0 8px", fontSize: "0.93rem", color: MUTED }}>
+            {usedAI ? "Describe specifically how you used AI on this assignment. What prompts did you use? What did you accept, revise, or reject from the AI's output?" : "Describe your writing process for this assignment. How did you approach the work?"}
+          </p>
+          <textarea style={s.textarea} placeholder="I used AI to... / The prompt I gave was... / From the output, I decided to... / I chose not to use AI because..." value={form.processDesc} onChange={e => set("processDesc", e.target.value)} />
+        </div>
+
+        {usedAI && (
+          <div style={s.card}>
+            <div style={s.sectionLabel}><div style={s.sectionNum}>5</div><span style={s.sectionTitle}>AI Chat Transcript <span style={{ fontWeight: 400, color: MUTED, fontSize: "0.9rem" }}>(Optional)</span></span></div>
+            <Field label="Shareable Chat Link">
+              <input style={s.input} placeholder="e.g., https://chat.openai.com/share/..." value={form.transcriptUrl} onChange={e => set("transcriptUrl", e.target.value)} />
+            </Field>
+            <Field label="Upload Transcript File (.txt, .pdf, .docx)">
+              <input ref={fileRef} type="file" accept=".txt,.pdf,.docx" style={{ display: "none" }} onChange={e => set("transcriptFile", e.target.files[0] || null)} />
+              <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 4 }}>
+                <button style={{ ...s.btnSec, padding: "8px 16px", fontSize: "0.88rem" }} onClick={() => fileRef.current.click()}>Choose File</button>
+                <span style={{ fontSize: "0.87rem", color: MUTED }}>{form.transcriptFile ? form.transcriptFile.name : "No file chosen"}</span>
+              </div>
+            </Field>
+            <div style={s.tip}>
+              <div style={s.tipTitle}>💡 How to export your AI transcript</div>
+              <p style={s.tipText}>
+                <strong>ChatGPT:</strong> Open your conversation → click the share icon (↗) in the top right → "Create public link" → copy the URL above, or use the three-dot menu → "Export data" for a full download.<br /><br />
+                <strong>Claude:</strong> Open your conversation → click the share icon in the top right → "Share conversation" → copy the public link. For a text export, select all text in the conversation and save to a .txt file.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div style={s.card}>
+          <div style={s.sectionLabel}><div style={s.sectionNum}>6</div><span style={s.sectionTitle}>Reflection</span></div>
+          <p style={{ margin: "0 0 8px", fontSize: "0.93rem", color: MUTED }}>
+            Take a moment to think about how this assignment went for you. Why did you choose to use AI — or not? What did that choice teach you, and what might you do differently next time?
+          </p>
+          <textarea style={s.textarea} placeholder={usedAI ? "e.g., Using AI pushed me to think more carefully about what I actually wanted to say — I had to evaluate its suggestions critically rather than just accepting them. Next time, I'd try drafting on my own first before bringing in AI..." : "e.g., Working without AI made me slow down and work through my ideas more carefully. I noticed I was more invested in my argument because every word came from my own thinking..."} value={form.reflection} onChange={e => set("reflection", e.target.value)} />
+        </div>
+
+        <div style={s.card}>
+          <div style={s.sectionLabel}><div style={s.sectionNum}>7</div><span style={s.sectionTitle}>Academic Integrity Acknowledgment</span></div>
+          <div style={s.integrityBox}>
+            I affirm that the information provided in this disclosure is accurate and complete to the best of my knowledge. I understand that honesty about AI use is a fundamental part of academic integrity in this course. I have reviewed the AI use policy outlined in the course syllabus, and I acknowledge that misrepresenting my use of AI tools — including omitting significant AI contributions — constitutes a violation of academic integrity standards. I take full responsibility for all work submitted under my name, including work that was AI-assisted, and I am committed to transparency in my learning process.
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: form.integrity ? TEAL_LIGHT : "#fafaf9", borderRadius: 10, border: "1.5px solid " + (form.integrity ? TEAL : BORDER), cursor: "pointer" }} onClick={() => set("integrity", !form.integrity)}>
+            <div style={s.checkBox(form.integrity)}>{form.integrity && <span style={s.checkMark}>✓</span>}</div>
+            <span style={{ fontSize: "0.95rem", fontWeight: 600 }}>I have read and agree to the above statement.</span>
+          </div>
+        </div>
+
+        <button style={s.btnPrimary(!requiredFilled())} disabled={!requiredFilled()} onClick={generate}>
+          Generate Disclosure Statement →
+        </button>
+        <p style={{ textAlign: "center", fontSize: "0.83rem", color: MUTED, marginTop: 10 }}>
+          All required fields must be complete and the integrity box checked before submitting.
+        </p>
+        <p style={{ textAlign: "center", fontSize: "0.78rem", color: "#b0b7c0", marginTop: 32, paddingTop: 16, borderTop: "1px solid " + BORDER }}>
+          Created by Amara Hand, Director, Writing Studio, North Carolina Central University · Built with Claude
+        </p>
+      </div>
+    </div>
+  );
+}
